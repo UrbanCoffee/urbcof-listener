@@ -1,0 +1,73 @@
+import { env_file_load, env_var_load } from "std/env"
+import { array_contains } from "std/array"
+
+main(args) {
+    env_file_load()
+    let PROJ = env_var_load("PROJ")
+    let FRONT = env_var_load("FRONT")
+    let BACK = env_var_load("BACK")
+
+    let rebuild_frontend = array_contains(args, "FRONTEND")
+    let rebuild_backend = array_contains(args, "BACKEND") 
+
+    if not rebuild_frontend and not rebuild_backend {
+        echo "No work specified. Exiting"
+        exit 0
+    }
+
+    if rebuild_backend {
+        // TODO: set up staging
+        // Have someone handle this on server
+        echo "Automated backend rebuilding NOT implemented"
+        echo "Exiting"
+        exit 1
+    }
+
+
+    // build frontend
+    echo ">> Rebulding Frontend"
+
+    $cd {PROJ}$ failed {
+        echo "Failed {status}: Could not move to '{PROJ}'"
+        exit status
+    }
+
+    let OLD_VERSION = ""
+    ${nameof OLD_VERSION}=\$(npm run --prefix {FRONT} version --silent)$ failed {
+        OLD_VERSION = trust $date +%s$
+    }
+
+    $git pull$ failed {
+        echo "Failed {status}: Could not pull changes"
+        exit status
+    }
+
+    // TODO: Check if npm install if needed
+
+    $npm run --prefix {FRONT} build:CF_TOKEN$ failed {
+        echo "Build step failed"
+        exit status
+    }
+
+    let backup = "build.{OLD_VERSION}.bak"
+
+    trust $echo -n "Backing up previous build... "$
+    $mv {BACK}/build {BACK}/old_builds/{backup}$ failed {
+        echo "Failed"
+        exit status
+    }
+    echo "Done"
+
+    trust $echo -n "Moving new build to backend... "$
+    $mv {FRONT}/build {BACK}$ failed {
+        echo "Failed"
+        trust $echo -n "Restoring previous build... "$
+        trust $mv {BACK}/old_builds/{backup} {BACK}/build$
+        echo "Restored"
+        exit status
+    }
+    echo "Moved"
+
+    echo "Build and Transfer Complete"
+    exit 0
+}

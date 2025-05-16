@@ -22,12 +22,34 @@ func handlePush(push github.PushPayload) {
 		return
 	}
 
-	// call script
-	cmd := exec.Command("OnPush.sh")
-	if err != nil {
-		log.Println("Failed to call OnPush.sh script")
-		return
+	// check if changes occured in frontend or backend
+	fe_path := os.Getenv("FE_PATH")
+	be_path := os.Getenv("BE_PATH")
+	fe_change := false
+	be_change := false
+
+	// expecting commit to be squashed
+	changes := append(push.Commits[0].added, push.Commits[0].deleted...)
+	changes = append(changes, push.Commits[0].modified...) 
+	for _, change := range changes {
+		fe_change = fe_change || strings.HasPrefix(added, fe_path)
+		be_change = be_change || strings.HasPrefix(added, be_path)
+		if(fe_change && be_change)
+			break
 	}
+
+	args := ""
+	if(fe_change)
+		args += "FRONTEND "
+	if(be_change)
+		args += "BACKEND"
+
+	// call script
+	cmd := exec.Command("OnPush.sh", args)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin  = os.Stdin
+	cmd.Run()
 }
 
 func main() {
