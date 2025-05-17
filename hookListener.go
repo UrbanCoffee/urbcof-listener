@@ -76,8 +76,7 @@ func main() {
 			case github.PushPayload:
 				push := payload.(github.PushPayload)
 				res.WriteHeader(http.StatusAccepted)
-				res.(http.Flusher).Flush()
-				handlePush(push)
+				go handlePush(push)
 			case github.PingPayload:
 				res.WriteHeader(http.StatusOK)
 				res.Write([]byte("pong"))
