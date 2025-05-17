@@ -17,39 +17,38 @@ const (
 )
 
 func handlePush(push github.PushPayload) {
-	fmt.Printf("%+v\n", push)
 	if(push.Ref != "refs/heads/main") {
 		return
 	}
 
 	// check if changes occured in frontend or backend
-	fe_path := os.Getenv("FE_PATH")
-	be_path := os.Getenv("BE_PATH")
+	fe_path := os.Getenv("FRONT_NAME")
+	be_path := os.Getenv("BACK_NAME")
 	fe_change := false
 	be_change := false
 
 	// expecting commit to be squashed
-	changes := append(push.Commits[0].added, push.Commits[0].deleted...)
-	changes = append(changes, push.Commits[0].modified...) 
+	changes := append(push.Commits[0].Added, push.Commits[0].Removed...)
+	changes = append(changes, push.Commits[0].Modified...) 
 	for _, change := range changes {
-		fe_change = fe_change || strings.HasPrefix(added, fe_path)
-		be_change = be_change || strings.HasPrefix(added, be_path)
-		if(fe_change && be_change)
-			break
+		fe_change = fe_change || strings.HasPrefix(change, fe_path)
+		be_change = be_change || strings.HasPrefix(change, be_path)
+		if(fe_change && be_change) {break}
 	}
 
-	args := ""
-	if(fe_change)
-		args += "FRONTEND "
-	if(be_change)
-		args += "BACKEND"
+	args := []string{}
+	if(fe_change) {args = append(args, "FRONTEND")}
+	if(be_change) {args = append(args, "BACKEND"  )}
 
 	// call script
-	cmd := exec.Command("OnPush.sh", args)
+	cmd := exec.Command("./OnPush.sh", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin  = os.Stdin
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Failed to run script. Reason:\n%s\n", err)
+		fmt.Println("================")
+	}
 }
 
 func main() {
@@ -77,6 +76,7 @@ func main() {
 			case github.PushPayload:
 				push := payload.(github.PushPayload)
 				res.WriteHeader(http.StatusAccepted)
+				res.(http.Flusher).Flush()
 				handlePush(push)
 			case github.PingPayload:
 				res.WriteHeader(http.StatusOK)
